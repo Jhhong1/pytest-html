@@ -41,6 +41,12 @@ def pytest_addoption(parser):
         default=[],
         help="append given css file content to report style file.",
     )
+    group.addoption(
+        "--report-files-name",
+        action="store",
+        default=None,
+        help="split reports into given name",
+    )
     parser.addini(
         "render_collapsed",
         type="bool",

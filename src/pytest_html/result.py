@@ -18,7 +18,9 @@ from .util import ansi_support
 
 class TestResult:
     def __init__(self, outcome, report, logfile, config):
-        self.test_id = report.nodeid.encode("utf-8").decode("unicode_escape")
+        # self.test_id = report.nodeid.encode("utf-8").decode("unicode_escape")
+        # can not display Chinese in reports
+        self.test_id = report.nodeid
         if getattr(report, "when", "call") != "call":
             self.test_id = "::".join([report.nodeid, report.when])
         self.time = getattr(report, "duration", 0.0)

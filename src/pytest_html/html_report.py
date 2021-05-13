@@ -31,6 +31,7 @@ class HTMLReport:
         self.rerun = 0 if has_rerun else None
         self.self_contained = config.getoption("self_contained_html")
         self.config = config
+        self.report_files = self.config.getoption("report_files_name")
         self.reports = defaultdict(list)
 
     def _appendrow(self, outcome, report):
@@ -267,8 +268,8 @@ class HTMLReport:
             with open(style_path, "w", encoding="utf-8") as f:
                 f.write(self.style_css)
 
-    def _post_process_reports(self):
-        for test_name, test_reports in self.reports.items():
+    def _post_process_reports(self, reports):
+        for test_name, test_reports in reports.items():
             report_outcome = "passed"
             wasxfail = False
             failure_when = None
@@ -333,10 +334,40 @@ class HTMLReport:
     def pytest_sessionstart(self, session):
         self.suite_start_time = time.time()
 
+    def categorized_report(self):
+        reports = defaultdict(dict)
+        report_file = self.report_files.split(',')
+        for test_name, test_reports in self.reports.items():
+            name = test_name.split('/')[1]
+            if name in report_file:
+                reports[name][test_name] = test_reports
+            else:
+                reports['others'][test_name] = test_reports
+        return reports
+
     def pytest_sessionfinish(self, session):
-        self._post_process_reports()
-        report_content = self._generate_report(session)
-        self._save_report(report_content)
+        if self.report_files:
+            reports = self.categorized_report()
+            for file_name, test_reports in reports.items():
+                self.logfile = os.path.join(os.path.dirname(self.logfile), '{}.html'.format(file_name))
+                self.title = os.path.basename(self.logfile)
+
+                # reset status
+                self.test_logs = []
+                self.results = []
+                self.errors = self.failed = 0
+                self.passed = self.skipped = 0
+                self.xfailed = self.xpassed = 0
+                has_rerun = self.config.pluginmanager.hasplugin("rerunfailures")
+                self.rerun = 0 if has_rerun else None
+
+                self._post_process_reports(test_reports)
+                report_content = self._generate_report(session)
+                self._save_report(report_content)
+        else:
+            self._post_process_reports(self.reports)
+            report_content = self._generate_report(session)
+            self._save_report(report_content)
 
     def pytest_terminal_summary(self, terminalreporter):
         terminalreporter.write_sep("-", f"generated html file: file://{self.logfile}")
